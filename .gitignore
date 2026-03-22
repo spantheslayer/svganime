@@ -1,0 +1,14 @@
+.DS_Store
+
+# Dependencies
+**/node_modules/
+
+# Generated videos and test renders
+**/output/
+**/animated/
+**/animated-*/
+
+# OS / editor local state
+.claude/
+**/.claude/
+

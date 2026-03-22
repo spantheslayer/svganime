@@ -96,11 +96,11 @@ async function processSVG(name, svgContent, outputDir, config) {
   }
 
   const outPath = path.join(outputDir, `${name}.mp4`);
-  const encoder = createEncoder(outPath, config);
 
   // Pre-build fast frame computer + renderer (parse once, string replace per frame)
   const getFrame = createFrameComputer(scene, config);
-  const render = createRenderer(scene, config);
+  const renderer = createRenderer(scene, config);
+  const encoder = createEncoder(outPath, config, renderer);
 
   const startTime = Date.now();
   process.stdout.write(`  ${name}.svg → ${name}.mp4  `);
@@ -115,7 +115,7 @@ async function processSVG(name, svgContent, outputDir, config) {
     tCompute += Date.now() - t0;
 
     t0 = Date.now();
-    const { pixels } = render(frameSvg);
+    const { pixels } = renderer.render(frameSvg);
     tRender += Date.now() - t0;
 
     t0 = Date.now();

@@ -1,14 +1,30 @@
 const { svgPathProperties } = require("svg-path-properties");
 
 function getPathLength(el, tagName) {
+  let raw = rawLength(el, tagName);
+
+  const transform = el.attr("transform");
+  if (transform) {
+    const scaleMatch = transform.match(/scale\(\s*([\d.]+)(?:\s*,\s*([\d.]+))?\s*\)/);
+    if (scaleMatch) {
+      const sx = parseFloat(scaleMatch[1]);
+      const sy = parseFloat(scaleMatch[2] || scaleMatch[1]);
+      raw *= Math.sqrt((sx * sx + sy * sy) / 2);
+    }
+  }
+
+  return raw;
+}
+
+function rawLength(el, tagName) {
   switch (tagName) {
     case "path": {
       const d = el.attr("d");
-      if (!d) return 1000;
+      if (!d) return 0;
       try {
         return new svgPathProperties(d).getTotalLength();
       } catch {
-        return 1000;
+        return 0;
       }
     }
     case "circle": {
@@ -24,7 +40,14 @@ function getPathLength(el, tagName) {
     case "rect": {
       const w = parseFloat(el.attr("width")) || 0;
       const h = parseFloat(el.attr("height")) || 0;
-      return 2 * (w + h);
+      const rx = Math.min(parseFloat(el.attr("rx")) || 0, w / 2);
+      const ry = Math.min(parseFloat(el.attr("ry")) || 0, h / 2);
+      const straight = 2 * (w - 2 * rx) + 2 * (h - 2 * ry);
+      const corners =
+        rx > 0 || ry > 0
+          ? Math.PI * (3 * (rx + ry) - Math.sqrt((3 * rx + ry) * (rx + 3 * ry)))
+          : 0;
+      return straight + corners;
     }
     case "line": {
       const x1 = parseFloat(el.attr("x1")) || 0;
@@ -35,10 +58,9 @@ function getPathLength(el, tagName) {
     }
     case "polyline":
     case "polygon": {
-      const points = (el.attr("points") || "")
-        .trim()
-        .split(/[\s,]+/)
-        .map(Number);
+      const raw = (el.attr("points") || "").trim();
+      if (!raw) return 0;
+      const points = raw.split(/[\s,]+/).map(Number);
       let len = 0;
       for (let i = 2; i < points.length; i += 2) {
         len += Math.sqrt(
@@ -52,10 +74,10 @@ function getPathLength(el, tagName) {
             (points[1] - points[points.length - 1]) ** 2
         );
       }
-      return len || 1000;
+      return len;
     }
     default:
-      return 1000;
+      return 0;
   }
 }
 
