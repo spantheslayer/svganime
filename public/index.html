@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SVG Animation to Video</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #111;
+    color: #e0e0e0;
+    min-height: 100vh;
+  }
+
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 40px 24px;
+  }
+
+  h1 {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #fff;
+  }
+
+  .subtitle {
+    color: #888;
+    font-size: 14px;
+    margin-bottom: 32px;
+  }
+
+  .editors {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .editor-group {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .editor-group label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #aaa;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  textarea {
+    width: 100%;
+    height: 320px;
+    background: #1a1a1a;
+    color: #d4d4d4;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 16px;
+    font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    resize: vertical;
+    outline: none;
+    tab-size: 2;
+  }
+
+  textarea:focus {
+    border-color: #555;
+  }
+
+  .controls {
+    display: flex;
+    gap: 16px;
+    align-items: flex-end;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .field label {
+    font-size: 12px;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .field input {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 6px;
+    color: #d4d4d4;
+    padding: 8px 12px;
+    font-size: 14px;
+    width: 100px;
+    outline: none;
+  }
+
+  .field input:focus {
+    border-color: #555;
+  }
+
+  .toggle {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 22px;
+    cursor: pointer;
+  }
+  .toggle input { display: none; }
+  .toggle-slider {
+    position: absolute;
+    inset: 0;
+    background: #333;
+    border-radius: 11px;
+    transition: background 0.2s;
+  }
+  .toggle-slider::before {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    left: 3px;
+    top: 3px;
+    background: #888;
+    border-radius: 50%;
+    transition: all 0.2s;
+  }
+  .toggle input:checked + .toggle-slider {
+    background: #555;
+  }
+  .toggle input:checked + .toggle-slider::before {
+    transform: translateX(18px);
+    background: #fff;
+  }
+
+  button {
+    padding: 10px 28px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn-generate {
+    background: #fff;
+    color: #111;
+  }
+
+  .btn-generate:hover:not(:disabled) {
+    background: #e0e0e0;
+  }
+
+  .btn-generate:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .btn-preview {
+    background: #2a2a2a;
+    color: #ccc;
+    border: 1px solid #444;
+  }
+
+  .btn-preview:hover {
+    background: #333;
+  }
+
+  .progress-wrap {
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 220px;
+  }
+
+  .progress-wrap.visible {
+    display: flex;
+  }
+
+  .progress-info {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #aaa;
+  }
+
+  .progress-bar {
+    height: 6px;
+    background: #2a2a2a;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    width: 0%;
+    background: #fff;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+  }
+
+  .status {
+    font-size: 14px;
+    color: #888;
+    margin-left: 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .status.error { color: #f87171; }
+  .status.success { color: #4ade80; }
+
+  .preview-area {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 12px;
+    padding: 24px;
+    min-height: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: auto;
+  }
+
+  .preview-area svg {
+    max-width: 100%;
+    height: auto;
+  }
+
+  .preview-area .placeholder {
+    color: #555;
+    font-size: 14px;
+  }
+
+  @media (max-width: 700px) {
+    .editors { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>SVG Animation to Video</h1>
+  <p class="subtitle">Paste your SVG and CSS (from SVG Artista, etc.), preview, and export as MP4.</p>
+
+  <div class="editors">
+    <div class="editor-group">
+      <label>SVG Markup</label>
+      <textarea id="svgInput" placeholder="Paste your <svg>...</svg> here" spellcheck="false"></textarea>
+    </div>
+    <div class="editor-group">
+      <label>CSS Animation</label>
+      <textarea id="cssInput" placeholder="Paste your CSS transitions/animations here" spellcheck="false"></textarea>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label>FPS</label>
+      <input type="number" id="fpsInput" value="60" min="24" max="120">
+    </div>
+    <div class="field">
+      <label>Hold (sec)</label>
+      <input type="number" id="holdInput" value="0.5" min="0" max="5" step="0.1">
+    </div>
+    <div class="field">
+      <label>Anim (sec)</label>
+      <input type="number" id="animInput" value="3.0" min="0.5" max="30" step="0.5">
+    </div>
+    <div class="field">
+      <label>Transparent BG</label>
+      <label class="toggle"><input type="checkbox" id="transparentInput"><span class="toggle-slider"></span></label>
+    </div>
+    <button class="btn-preview" onclick="preview()">Preview</button>
+    <button class="btn-generate" id="generateBtn" onclick="generate()">Generate Video</button>
+    <span class="status" id="status"></span>
+  </div>
+
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-info">
+      <span id="progressMsg">Preparing...</span>
+      <span id="progressPct">0%</span>
+    </div>
+    <div class="progress-bar">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+  </div>
+
+  <div class="preview-area" id="previewArea">
+    <span class="placeholder">Preview will appear here</span>
+  </div>
+</div>
+
+<script>
+function processFillCSS(css) {
+  if (!css) return "";
+  var processed = css.replace(
+    /fill\s*:\s*([^;!}]+)(;|(?=\s*}))/g,
+    "fill: $1 !important$2"
+  );
+  var result = "";
+  var i = 0;
+  while (i < processed.length) {
+    var rest = processed.substring(i);
+    var m = rest.match(/^@(-webkit-)?keyframes\s+[\w-]+\s*\{/);
+    if (m) {
+      var depth = 1;
+      var j = m[0].length;
+      while (j < rest.length && depth > 0) {
+        if (rest[j] === "{") depth++;
+        else if (rest[j] === "}") depth--;
+        j++;
+      }
+      result += rest.substring(0, j).replace(/ !important/g, "");
+      i += j;
+    } else {
+      result += processed[i];
+      i++;
+    }
+  }
+  return result;
+}
+
+function injectTextAnimations(root) {
+  var svg = root.querySelector("svg");
+  if (!svg) return;
+
+  var animDelays = {};
+  try {
+    for (var s = 0; s < document.styleSheets.length; s++) {
+      var rules = document.styleSheets[s].cssRules;
+      for (var r = 0; r < rules.length; r++) {
+        var rule = rules[r];
+        if (!rule.selectorText) continue;
+        var m = rule.selectorText.match(/svg\s+\.svg-elem-(\d+)$/);
+        if (!m) continue;
+        var delays = rule.style.transitionDelay;
+        if (delays) {
+          var first = parseFloat(delays.split(",")[0]);
+          if (!isNaN(first)) animDelays[parseInt(m[1])] = first * 1000;
+        }
+      }
+    }
+  } catch (e) {}
+
+  function getDelayFromEl(el) {
+    var c = el.className && el.className.baseVal || "";
+    var m = c.match(/svg-elem-(\d+)/);
+    if (m && animDelays[parseInt(m[1])] !== undefined) return animDelays[parseInt(m[1])];
+    return null;
+  }
+
+  var easing = "cubic-bezier(0.68, -0.55, 0.265, 1.55)";
+  var texts = svg.querySelectorAll("text");
+  var count = 0;
+  texts.forEach(function(text) {
+    var cls = text.className && text.className.baseVal || "";
+    if (cls.indexOf("svg-elem-") !== -1) return;
+
+    var delay = count * 100;
+    var parent = text.parentElement;
+
+    var sib = parent && parent.querySelector('[class*="svg-elem-"]');
+    if (sib) {
+      var d = getDelayFromEl(sib);
+      if (d !== null) delay = d;
+    } else {
+      var el = text.previousElementSibling;
+      while (el) {
+        var d = getDelayFromEl(el);
+        if (d !== null) { delay = d; break; }
+        var inner = el.querySelector && el.querySelector('[class*="svg-elem-"]');
+        if (inner) { d = getDelayFromEl(inner); if (d !== null) { delay = d; break; } }
+        el = el.previousElementSibling;
+      }
+    }
+
+    // Stroke-drawing effect: text is "written" like shapes
+    var fillColor = getComputedStyle(text).fill || "rgb(255,255,255)";
+    var len = text.getComputedTextLength() * 3;
+
+    text.setAttribute("stroke", fillColor);
+    text.setAttribute("stroke-width", "0.5");
+    text.setAttribute("stroke-dasharray", len);
+
+    // Stroke draws in
+    text.animate(
+      [{ strokeDashoffset: len + "px" }, { strokeDashoffset: "0px" }],
+      { duration: 1000, delay: delay, easing: easing, fill: "both" }
+    );
+    // Fill fades in after stroke starts
+    text.animate(
+      [{ fill: "transparent" }, { fill: fillColor }],
+      { duration: 700, delay: delay + 800, easing: easing, fill: "both" }
+    );
+    count++;
+  });
+}
+
+function preview() {
+  const svg = document.getElementById("svgInput").value.trim();
+  const css = document.getElementById("cssInput").value.trim();
+  const area = document.getElementById("previewArea");
+
+  if (!svg) {
+    area.innerHTML = '<span class="placeholder">Paste SVG markup first</span>';
+    return;
+  }
+
+  const fixedCss = processFillCSS(css);
+  area.innerHTML = `<style>${fixedCss}</style>${svg}`;
+
+  // Trigger animation + text fade-ins after a brief delay
+  setTimeout(() => {
+    const svgEl = area.querySelector("svg");
+    if (svgEl) svgEl.classList.add("active");
+    injectTextAnimations(area);
+  }, 300);
+}
+
+async function generate() {
+  const svg = document.getElementById("svgInput").value.trim();
+  const css = document.getElementById("cssInput").value.trim();
+  const fps = parseInt(document.getElementById("fpsInput").value) || 60;
+  const holdSec = parseFloat(document.getElementById("holdInput").value) || 0.5;
+  const animSec = parseFloat(document.getElementById("animInput").value) || 3.0;
+  const transparent = document.getElementById("transparentInput").checked;
+  const btn = document.getElementById("generateBtn");
+  const status = document.getElementById("status");
+  const progressWrap = document.getElementById("progressWrap");
+  const progressMsg = document.getElementById("progressMsg");
+  const progressPct = document.getElementById("progressPct");
+  const progressFill = document.getElementById("progressFill");
+
+  if (!svg) {
+    status.className = "status error";
+    status.textContent = "Paste SVG markup first";
+    return;
+  }
+
+  btn.disabled = true;
+  status.className = "status";
+  status.textContent = "";
+  progressWrap.classList.add("visible");
+  progressMsg.textContent = "Preparing...";
+  progressPct.textContent = "0%";
+  progressFill.style.width = "0%";
+
+  try {
+    const resp = await fetch("/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ svg, css, fps, holdSec, animSec, transparent }),
+    });
+
+    if (!resp.ok) {
+      throw new Error("Server error");
+    }
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop(); // keep incomplete line in buffer
+
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const data = JSON.parse(line.slice(6));
+
+        progressMsg.textContent = data.message;
+        progressPct.textContent = data.percent + "%";
+        progressFill.style.width = data.percent + "%";
+
+        if (data.stage === "error") {
+          throw new Error(data.message);
+        }
+
+        if (data.stage === "done" && data.video) {
+          // Decode base64 and trigger download
+          const bytes = atob(data.video);
+          const arr = new Uint8Array(bytes.length);
+          for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+          const ext = transparent ? "mov" : "mp4";
+          const mime = transparent ? "video/quicktime" : "video/mp4";
+          const blob = new Blob([arr], { type: mime });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "animation." + ext;
+          a.click();
+          URL.revokeObjectURL(url);
+
+          status.className = "status success";
+          status.textContent = "Video downloaded!";
+        }
+      }
+    }
+  } catch (err) {
+    status.className = "status error";
+    status.textContent = err.message;
+    progressFill.style.width = "0%";
+  } finally {
+    btn.disabled = false;
+    setTimeout(() => { progressWrap.classList.remove("visible"); }, 2000);
+  }
+}
+</script>
+</body>
+</html>

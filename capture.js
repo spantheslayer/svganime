@@ -30,7 +30,17 @@ async function main() {
   const htmlPath = path.join(__dirname, "animation.html");
   await page.goto(`file://${htmlPath}`, { waitUntil: "load" });
 
-  // Capture hold frames (initial state, before animation)
+  // Trigger animation, then pause and seek via Web Animations API
+  await page.evaluate(() => {
+    document.querySelector("svg").classList.add("active");
+    getComputedStyle(document.querySelector("svg")).fill;
+    document.getAnimations().forEach((a) => {
+      a.pause();
+      a.currentTime = 0;
+    });
+  });
+
+  // Capture hold frames (initial state at t=0, everything invisible)
   const holdFrames = Math.ceil(FPS * HOLD_SEC);
   const firstFramePath = path.join(FRAMES_DIR, `frame_${String(0).padStart(5, "0")}.png`);
   await page.screenshot({ path: firstFramePath, type: "png" });
@@ -40,28 +50,14 @@ async function main() {
     fs.copyFileSync(firstFramePath, path.join(FRAMES_DIR, `frame_${String(i).padStart(5, "0")}.png`));
   }
 
-  // Trigger the animation, then immediately pause all animations
-  await page.evaluate(() => {
-    document.querySelector("svg").classList.add("active");
-    // Pause all CSS transition-backed animations at time 0
-    document.getAnimations().forEach((a) => {
-      a.pause();
-      a.currentTime = 0;
-    });
-  });
-
-  // Capture animation frames by seeking to exact times
+  // Seek and capture each animation frame
   const animFrames = TOTAL_FRAMES - holdFrames;
   const frameDurationMs = 1000 / FPS;
 
   for (let i = 0; i < animFrames; i++) {
     const timeMs = i * frameDurationMs;
-
-    // Seek all animations to the exact time
     await page.evaluate((t) => {
-      document.getAnimations().forEach((a) => {
-        a.currentTime = t;
-      });
+      document.getAnimations().forEach((a) => { a.currentTime = t; });
     }, timeMs);
 
     const frameIndex = holdFrames + i;
